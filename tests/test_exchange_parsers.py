@@ -72,18 +72,16 @@ def _upbit_payload():
     return {
         "success": True,
         "data": {
-            "list": [
+            "notices": [
                 {
                     "id": 5098,
                     "title": "某币种入金延迟公告",
-                    "content": "正文内容……",
-                    "created_at": "2026-09-11T01:00:00.000Z",
+                    "listed_at": "2026-09-11T01:00:00+09:00",
                 },
                 {
                     "id": 5097,
                     "title": "系统维护公告",
-                    "content": "正文内容2……",
-                    "created_at": "2026-09-10T23:00:00.000Z",
+                    "listed_at": "2026-09-10T23:00:00+09:00",
                 },
             ]
         },
@@ -92,7 +90,8 @@ def _upbit_payload():
 
 def test_upbit_parse(monkeypatch):
     def fake_get(url, params, headers, timeout):
-        assert params["thread_name"] == "general"
+        assert params["category"] == "notice"
+        assert params["os"] == "web"
         return _FakeResp(_upbit_payload())
 
     monkeypatch.setattr("app.collectors.upbit.requests.get", fake_get)
@@ -102,7 +101,8 @@ def test_upbit_parse(monkeypatch):
     f0, f1 = flashes
     assert f0.source == "upbit"
     assert f0.title == "某币种入金延迟公告"
-    assert f0.content == "正文内容……"
+    assert f0.content == ""
     assert f0.url == "https://upbit.com/service_center/notice?id=5098"
-    assert f0.published_at == datetime(2026, 9, 11, 1, 0, 0)
+    # +09:00 转 UTC：2026-09-11T01:00+09:00 => 2026-09-10T16:00 UTC
+    assert f0.published_at == datetime(2026, 9, 10, 16, 0, 0)
     assert f1.url == "https://upbit.com/service_center/notice?id=5097"
