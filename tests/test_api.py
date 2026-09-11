@@ -74,3 +74,51 @@ def test_item_fields(client):
     item = resp.json()["items"][0]
     for key in ["source", "title", "content", "published_at", "url", "collected_at"]:
         assert key in item
+
+
+def test_collect_exchanges(monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.collectors.base import NewsFlash
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    def fake_binance_fetch(self):
+        return [
+            NewsFlash(
+                source="binance",
+                title="币安公告",
+                content="",
+                published_at=now,
+                url="https://binance.example/1",
+                collected_at=now,
+            )
+        ]
+
+    def fake_upbit_fetch(self):
+        return [
+            NewsFlash(
+                source="upbit",
+                title="업비트 공지",
+                content="",
+                published_at=now,
+                url="https://upbit.example/1",
+                collected_at=now,
+            )
+        ]
+
+    monkeypatch.setattr("app.api.BinanceCollector.fetch", fake_binance_fetch)
+    monkeypatch.setattr("app.api.UpbitCollector.fetch", fake_upbit_fetch)
+
+    with TestClient(app) as c:
+        resp = c.get("/api/collect/exchanges")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["results"]) == 2
+    assert data["results"][0]["source"] == "binance"
+    assert data["results"][0]["ok"] is True
+    assert data["results"][0]["count"] == 1
+    assert data["results"][0]["items"][0]["title"] == "币安公告"
+    assert data["results"][1]["source"] == "upbit"
+    assert data["results"][1]["items"][0]["title"] == "업비트 공지"
