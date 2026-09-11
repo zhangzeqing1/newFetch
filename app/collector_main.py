@@ -3,7 +3,7 @@ import logging
 import time
 
 from . import config
-from .collectors import OdailyCollector, TechFlowCollector
+from .collectors import BinanceCollector, OdailyCollector, TechFlowCollector, UpbitCollector
 from .dedup import Dedup
 from .kafka_producer import NewsFlashProducer
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    collectors = [TechFlowCollector(), OdailyCollector()]
+    collectors = [TechFlowCollector(), OdailyCollector(), BinanceCollector(), UpbitCollector()]
     dedup = Dedup()
     producer = NewsFlashProducer()
 
