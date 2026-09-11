@@ -32,7 +32,7 @@ KAFKA_TOPIC = _env("KAFKA_TOPIC", "newsflash")
 KAFKA_CONSUMER_GROUP = _env("KAFKA_CONSUMER_GROUP", "newsflash-consumer")
 
 # ---- 采集器 ----
-COLLECT_INTERVAL = float(_env("COLLECT_INTERVAL", "3"))  # 默认每 3 秒采集一次
+COLLECT_INTERVAL = float(_env("COLLECT_INTERVAL", "1"))  # 默认每 1 秒采集一次
 TECHFLOW_PAGE_SIZE = int(_env("TECHFLOW_PAGE_SIZE", "9"))
 ODAILY_PAGE_SIZE = int(_env("ODAILY_PAGE_SIZE", "16"))
 BINANCE_PAGE_SIZE = int(_env("BINANCE_PAGE_SIZE", "20"))
