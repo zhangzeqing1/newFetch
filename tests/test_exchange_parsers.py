@@ -106,3 +106,32 @@ def test_upbit_parse(monkeypatch):
     # +09:00 转 UTC：2026-09-11T01:00+09:00 => 2026-09-10T16:00 UTC
     assert f0.published_at == datetime(2026, 9, 10, 16, 0, 0)
     assert f1.url == "https://upbit.com/service_center/notice?id=5097"
+
+
+def _make_flash(source, url):
+    from app.collectors.base import NewsFlash
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return NewsFlash(source=source, title="t", content="", published_at=now, url=url, collected_at=now)
+
+
+def test_binance_fetch_detail(monkeypatch):
+    flash = _make_flash("binance", "https://www.binance.com/zh-CN/support/announcement/abc123")
+
+    def fake_get(url, params, headers, timeout):
+        assert params["articleCode"] == "abc123"
+        return _FakeResp({"data": {"body": "<p>正文</p><p>第二段</p>"}})
+
+    monkeypatch.setattr("app.collectors.binance.requests.get", fake_get)
+    assert BinanceCollector().fetch_detail(flash) == "正文第二段"
+
+
+def test_upbit_fetch_detail(monkeypatch):
+    flash = _make_flash("upbit", "https://upbit.com/service_center/notice?id=6554")
+
+    def fake_get(url, headers, timeout):
+        assert url == "https://api-manager.upbit.com/api/v1/announcements/6554"
+        return _FakeResp({"data": {"body": "안녕하세요 업비트입니다."}})
+
+    monkeypatch.setattr("app.collectors.upbit.requests.get", fake_get)
+    assert UpbitCollector().fetch_detail(flash) == "안녕하세요 업비트입니다."

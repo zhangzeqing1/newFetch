@@ -1,8 +1,9 @@
 """Binance 公告采集器（下架/退市公告 catalogId=161）。
 
 接口：GET https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId={n}&pageNo={n}&pageSize={n}
-注意：列表接口只返回 id/title/code/releaseDate，正文 body 需另调 detail 接口。
+列表接口不含正文，正文通过 fetch_detail 调 detail 接口获取。
 """
+import re
 from datetime import datetime, timezone
 
 import requests
@@ -11,7 +12,9 @@ from .. import config
 from .base import NewsFlash, utcnow_naive
 
 API_URL = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
+DETAIL_URL = "https://www.binance.com/bapi/composite/v1/public/cms/article/detail/query"
 PAGE_URL_TEMPLATE = "https://www.binance.com/zh-CN/support/announcement/{code}"
+_TAG_RE = re.compile(r"<[^>]+>")
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -60,6 +63,19 @@ class BinanceCollector:
                     )
                 )
         return flashes
+
+    def fetch_detail(self, flash: NewsFlash) -> str:
+        """请求详情接口获取正文（列表接口不含 body）。"""
+        code = flash.url.rstrip("/").split("/")[-1]
+        resp = requests.get(
+            DETAIL_URL,
+            params={"articleCode": code},
+            headers=HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        body = resp.json().get("data", {}).get("body", "")
+        return _TAG_RE.sub("", body or "").strip()
 
     @staticmethod
     def _parse_time(ms: int | None) -> datetime:

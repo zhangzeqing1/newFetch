@@ -1,8 +1,10 @@
 """Upbit 公告采集器（공지사항/通知）。
 
 接口：GET https://api-manager.upbit.com/api/v1/announcements?os=web&page={n}&per_page={n}&category=notice
+列表接口不含正文，正文通过 fetch_detail 调详情接口获取。
 """
 from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlparse
 
 import requests
 
@@ -10,6 +12,7 @@ from .. import config
 from .base import NewsFlash, utcnow_naive
 
 API_URL = "https://api-manager.upbit.com/api/v1/announcements"
+DETAIL_URL_TEMPLATE = "https://api-manager.upbit.com/api/v1/announcements/{id}"
 PAGE_URL_TEMPLATE = "https://upbit.com/service_center/notice?id={id}"
 HEADERS = {
     "User-Agent": (
@@ -48,6 +51,19 @@ class UpbitCollector:
                 )
             )
         return flashes
+
+    def fetch_detail(self, flash: NewsFlash) -> str:
+        """请求详情接口获取正文（列表接口不含 body）。"""
+        nid = parse_qs(urlparse(flash.url).query).get("id", [None])[0]
+        if not nid:
+            return ""
+        resp = requests.get(
+            DETAIL_URL_TEMPLATE.format(id=nid),
+            headers=HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json().get("data", {}).get("body", "") or ""
 
     @staticmethod
     def _parse_time(value) -> datetime:
