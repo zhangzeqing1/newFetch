@@ -6,24 +6,47 @@ from app.dedup import Dedup
 
 
 class FakeRedis:
-    """内存版 Redis，仅实现 set / sadd。"""
+    """内存版 Redis，实现 set / zadd / zscore / zremrangebyscore / lpush / lrange / ltrim。"""
 
     def __init__(self):
         self.kv = {}
-        self.sets = {}
+        self.zsets = {}
+        self.lists = {}
 
-    def set(self, key, value, nx=False):
+    def set(self, key, value, nx=False, ex=None):
         if nx and key in self.kv:
             return None
         self.kv[key] = value
         return True
 
-    def sadd(self, key, member):
-        s = self.sets.setdefault(key, set())
-        if member in s:
-            return 0
-        s.add(member)
-        return 1
+    def zadd(self, key, mapping):
+        z = self.zsets.setdefault(key, {})
+        z.update(mapping)
+        return len(mapping)
+
+    def zscore(self, key, member):
+        return self.zsets.get(key, {}).get(member)
+
+    def zremrangebyscore(self, key, min_score, max_score):
+        z = self.zsets.get(key, {})
+        doomed = [m for m, s in z.items() if min_score <= s <= max_score]
+        for m in doomed:
+            del z[m]
+        return len(doomed)
+
+    def lpush(self, key, value):
+        self.lists.setdefault(key, []).insert(0, value)
+        return len(self.lists[key])
+
+    def lrange(self, key, start, end):
+        lst = self.lists.get(key, [])
+        stop = end + 1 if end >= 0 else None
+        return lst[start:stop]
+
+    def ltrim(self, key, start, end):
+        lst = self.lists.get(key, [])
+        stop = end + 1 if end >= 0 else None
+        self.lists[key] = lst[start:stop]
 
 
 def make_flash(title="某快讯标题", url="https://example.com/a", source="techflowpost"):
@@ -71,3 +94,17 @@ def test_cross_platform_same_title_dedup():
     f2 = make_flash(source="odaily", url="https://b.example/2")
     assert d.should_publish(f1) is True
     assert d.should_publish(f2) is False  # 标题相同（不同 url）仍被拦截
+
+
+def test_title_fuzzy_dedup():
+    """标题相近（措辞不同，bigram Jaccard 超过阈值）应被拦截。"""
+    d = Dedup(client=FakeRedis())
+    assert d.is_new_by_title("比特币价格突破10万美元") is True
+    assert d.is_new_by_title("比特币价格突破10万美金") is False  # 相似
+
+
+def test_title_distinct_not_dedup():
+    """完全不同标题不应被误判为重复。"""
+    d = Dedup(client=FakeRedis())
+    assert d.is_new_by_title("比特币价格突破10万美元") is True
+    assert d.is_new_by_title("以太坊升级即将上线") is True

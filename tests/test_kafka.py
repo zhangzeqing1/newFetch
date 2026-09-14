@@ -38,3 +38,47 @@ def test_parse_message_roundtrip():
     assert parsed.published_at == flash.published_at
     assert parsed.url == flash.url
     assert parsed.collected_at == flash.collected_at
+
+
+def test_flush_batch_idempotent():
+    from sqlalchemy import create_engine, func, select
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from app.kafka_consumer import flush_batch
+    from app.models import Base, NewsFlash
+
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    flashes = [
+        NewsFlash(source="s", title=f"t{i}", content="", published_at=now, url=f"https://x/{i}", collected_at=now)
+        for i in range(3)
+    ]
+
+    # 批量写入
+    assert flush_batch(session, flashes) == 3
+    assert session.scalar(select(func.count()).select_from(NewsFlash)) == 3
+
+    # 重复批次（新实例但 source/url 相同）：全部跳过（幂等）
+    dup = [
+        NewsFlash(source="s", title=f"t{i}", content="", published_at=now, url=f"https://x/{i}", collected_at=now)
+        for i in range(3)
+    ]
+    assert flush_batch(session, dup) == 0
+    assert session.scalar(select(func.count()).select_from(NewsFlash)) == 3
+
+    # 混合批次：只有新的入库（走逐条降级路径）
+    mixed = [
+        NewsFlash(source="s", title="t0", content="", published_at=now, url="https://x/0", collected_at=now),
+        NewsFlash(source="s", title="new", content="", published_at=now, url="https://x/new", collected_at=now),
+    ]
+    assert flush_batch(session, mixed) == 1
+    assert session.scalar(select(func.count()).select_from(NewsFlash)) == 4
+
+    session.close()

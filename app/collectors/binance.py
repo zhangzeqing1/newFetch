@@ -26,6 +26,10 @@ HEADERS = {
     "Origin": "https://www.binance.com",
 }
 
+# 复用连接：常驻 Session 避免每轮轮询重复 TCP/TLS 握手
+session = requests.Session()
+session.headers.update(HEADERS)
+
 
 class BinanceCollector:
     source = "binance"
@@ -39,10 +43,9 @@ class BinanceCollector:
     ) -> list[NewsFlash]:
         page_size = page_size or config.BINANCE_PAGE_SIZE
         catalog_id = catalog_id or config.BINANCE_CATALOG_ID
-        resp = requests.get(
+        resp = session.get(
             API_URL,
             params={"type": 1, "catalogId": catalog_id, "pageNo": page, "pageSize": page_size},
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()
@@ -68,10 +71,9 @@ class BinanceCollector:
     def fetch_detail(self, flash: NewsFlash) -> str:
         """请求详情接口获取正文（列表接口不含 body）。"""
         code = flash.url.rstrip("/").split("/")[-1]
-        resp = requests.get(
+        resp = session.get(
             DETAIL_URL,
             params={"articleCode": code},
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

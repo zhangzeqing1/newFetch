@@ -21,16 +21,19 @@ HEADERS = {
 }
 _TAG_RE = re.compile(r"<[^>]+>")
 
+# 复用连接：常驻 Session 避免每轮轮询重复 TCP/TLS 握手
+session = requests.Session()
+session.headers.update(HEADERS)
+
 
 class OdailyCollector:
     source = "odaily"
 
     def fetch(self, page: int = 1, size: int | None = None) -> list[NewsFlash]:
         size = size or config.ODAILY_PAGE_SIZE
-        resp = requests.get(
+        resp = session.get(
             API_URL,
             params={"page": page, "size": size, "groupId": 0, "isImport": "false"},
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

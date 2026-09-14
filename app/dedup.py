@@ -1,9 +1,10 @@
 """去重逻辑。
 
-1. 初次去重（Redis）：按平台 + 原文链接 SET NX，已存在则跳过。
-2. 二次去重：聚合两平台数据后，标题归一化（去空白/标点、英文转小写）精确匹配。
+1. 初次去重（Redis）：按平台 + 原文链接 SET NX，带 7 天 TTL。
+2. 二次去重：标题精确匹配（ZSet 7 天滑动窗口）+ 字符 bigram Jaccard（最近 N 条窗口）。
 """
 import re
+import time
 
 import redis
 
@@ -14,7 +15,21 @@ from .collectors.base import NewsFlash
 _NORMALIZE_RE = re.compile(r"[\W_]+", re.UNICODE)
 
 _URL_KEY_PREFIX = "newsflash:url"
-_TITLE_SET_KEY = "newsflash:titles"
+_TITLE_ZSET_KEY = "newsflash:titles_window"  # ZSet：7 天窗口，精确去重
+_TITLE_LIST_KEY = "newsflash:recent_titles"  # List：500 条窗口，模糊去重
+
+
+def _ngrams(text: str, n: int = 2) -> set:
+    """字符级 n-gram（中文无需分词）。"""
+    return {text[i : i + n] for i in range(len(text) - n + 1)}
+
+
+def _jaccard(a: str, b: str) -> float:
+    """基于字符 bigram 的 Jaccard 相似度。"""
+    sa, sb = _ngrams(a), _ngrams(b)
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
 
 
 class Dedup:
@@ -25,8 +40,10 @@ class Dedup:
         return f"{_URL_KEY_PREFIX}:{source}:{url}"
 
     def is_new_by_url(self, source: str, url: str) -> bool:
-        """按平台 + 原文链接去重。SET NX 成功（key 不存在）返回 True。"""
-        return bool(self.client.set(self.url_key(source, url), "1", nx=True))
+        """按平台 + 原文链接去重（7 天 TTL）。SET NX 成功返回 True。"""
+        return bool(
+            self.client.set(self.url_key(source, url), "1", nx=True, ex=config.DEDUP_TTL)
+        )
 
     @staticmethod
     def normalize_title(title: str) -> str:
@@ -34,8 +51,27 @@ class Dedup:
         return _NORMALIZE_RE.sub("", title or "").lower()
 
     def is_new_by_title(self, title: str) -> bool:
-        """按归一化标题去重。SADD 返回 1 表示新加入。"""
-        return self.client.sadd(_TITLE_SET_KEY, self.normalize_title(title)) == 1
+        """标题二次去重：ZSet 精确匹配（7 天窗口）+ 最近窗口 bigram Jaccard 相似度。"""
+        normalized = self.normalize_title(title)
+        if not normalized:
+            return True
+
+        now = time.time()
+        # 1. 精确匹配（ZSet 7 天滑动窗口）
+        if self.client.zscore(_TITLE_ZSET_KEY, normalized) is not None:
+            return False
+
+        # 2. 模糊匹配（对最近 N 条标题窗口）
+        for old in self.client.lrange(_TITLE_LIST_KEY, 0, -1):
+            if _jaccard(normalized, old) > config.TITLE_SIM_THRESHOLD:
+                return False
+
+        # 3. 确认为新标题：写入 ZSet + 清理 7 天前成员 + 加入最近窗口
+        self.client.zadd(_TITLE_ZSET_KEY, {normalized: now})
+        self.client.zremrangebyscore(_TITLE_ZSET_KEY, 0, now - config.DEDUP_TTL)
+        self.client.lpush(_TITLE_LIST_KEY, normalized)
+        self.client.ltrim(_TITLE_LIST_KEY, 0, config.TITLE_WINDOW - 1)
+        return True
 
     def should_publish(self, flash: NewsFlash) -> bool:
         """先按链接去重，再按标题去重；均为新则返回 True。"""

@@ -22,16 +22,20 @@ HEADERS = {
     "Accept": "application/json",
 }
 
+# 复用连接：常驻 Session 避免每轮轮询重复 TCP/TLS 握手
+session = requests.Session()
+session.headers.update(HEADERS)
+
 
 class UpbitCollector:
     source = "upbit"
+    poll_interval = config.UPBIT_POLL_INTERVAL  # Upbit 有风控，单独放慢轮询
 
     def fetch(self, page: int = 1, per_page: int | None = None) -> list[NewsFlash]:
         per_page = per_page or config.UPBIT_PAGE_SIZE
-        resp = requests.get(
+        resp = session.get(
             API_URL,
             params={"os": "web", "page": page, "per_page": per_page, "category": "notice"},
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()
@@ -57,9 +61,8 @@ class UpbitCollector:
         nid = parse_qs(urlparse(flash.url).query).get("id", [None])[0]
         if not nid:
             return ""
-        resp = requests.get(
+        resp = session.get(
             DETAIL_URL_TEMPLATE.format(id=nid),
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

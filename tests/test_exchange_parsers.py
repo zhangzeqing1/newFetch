@@ -48,12 +48,11 @@ def _binance_payload():
 
 
 def test_binance_parse(monkeypatch):
-    def fake_get(url, params, headers, timeout):
+    def fake_get(url, params, timeout):
         assert params["catalogId"] == 161
-        assert headers["clienttype"] == "web"
         return _FakeResp(_binance_payload())
 
-    monkeypatch.setattr("app.collectors.binance.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.binance.session.get", fake_get)
     flashes = BinanceCollector().fetch()
 
     assert len(flashes) == 2
@@ -89,12 +88,12 @@ def _upbit_payload():
 
 
 def test_upbit_parse(monkeypatch):
-    def fake_get(url, params, headers, timeout):
+    def fake_get(url, params, timeout):
         assert params["category"] == "notice"
         assert params["os"] == "web"
         return _FakeResp(_upbit_payload())
 
-    monkeypatch.setattr("app.collectors.upbit.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.upbit.session.get", fake_get)
     flashes = UpbitCollector().fetch()
 
     assert len(flashes) == 2
@@ -118,20 +117,20 @@ def _make_flash(source, url):
 def test_binance_fetch_detail(monkeypatch):
     flash = _make_flash("binance", "https://www.binance.com/zh-CN/support/announcement/abc123")
 
-    def fake_get(url, params, headers, timeout):
+    def fake_get(url, params, timeout):
         assert params["articleCode"] == "abc123"
         return _FakeResp({"data": {"body": "<p>正文</p><p>第二段</p>"}})
 
-    monkeypatch.setattr("app.collectors.binance.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.binance.session.get", fake_get)
     assert BinanceCollector().fetch_detail(flash) == "正文第二段"
 
 
 def test_upbit_fetch_detail(monkeypatch):
     flash = _make_flash("upbit", "https://upbit.com/service_center/notice?id=6554")
 
-    def fake_get(url, headers, timeout):
+    def fake_get(url, timeout):
         assert url == "https://api-manager.upbit.com/api/v1/announcements/6554"
         return _FakeResp({"data": {"body": "안녕하세요 업비트입니다."}})
 
-    monkeypatch.setattr("app.collectors.upbit.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.upbit.session.get", fake_get)
     assert UpbitCollector().fetch_detail(flash) == "안녕하세요 업비트입니다."

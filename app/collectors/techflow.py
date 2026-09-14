@@ -19,16 +19,19 @@ HEADERS = {
     "Accept": "application/json",
 }
 
+# 复用连接：常驻 Session 避免每轮轮询重复 TCP/TLS 握手
+session = requests.Session()
+session.headers.update(HEADERS)
+
 
 class TechFlowCollector:
     source = "techflowpost"
 
     def fetch(self, page: int = 1, page_size: int | None = None) -> list[NewsFlash]:
         page_size = page_size or config.TECHFLOW_PAGE_SIZE
-        resp = requests.get(
+        resp = session.get(
             API_URL,
             params={"page": page, "page_size": page_size},
-            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

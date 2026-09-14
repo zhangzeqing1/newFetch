@@ -16,4 +16,7 @@ ruyitrace/
 # IDE
 .idea/
 
+# 面试/说明文档（个人资料，不入库）
+docs/
+
 # Docker 本地卷（不涉及）

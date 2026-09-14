@@ -23,7 +23,11 @@ class NewsFlashProducer:
         )
 
     def send(self, flash: NewsFlash) -> None:
-        self.producer.send(config.KAFKA_TOPIC, value=flash.to_dict())
+        self.producer.send(
+            config.KAFKA_TOPIC,
+            key=flash.source.encode("utf-8"),
+            value=flash.to_dict(),
+        )
 
     def flush(self) -> None:
         self.producer.flush()

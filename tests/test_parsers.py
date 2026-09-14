@@ -41,11 +41,11 @@ def _techflow_payload():
 
 
 def test_techflow_parse(monkeypatch):
-    def fake_get(url, params, headers, timeout):
+    def fake_get(url, params, timeout):
         assert params["page"] == 1
         return _FakeResp(_techflow_payload())
 
-    monkeypatch.setattr("app.collectors.techflow.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.techflow.session.get", fake_get)
     flashes = TechFlowCollector().fetch()
 
     assert len(flashes) == 2
@@ -86,11 +86,11 @@ def _odaily_payload():
 
 
 def test_odaily_parse(monkeypatch):
-    def fake_get(url, params, headers, timeout):
+    def fake_get(url, params, timeout):
         assert params["groupId"] == 0
         return _FakeResp(_odaily_payload())
 
-    monkeypatch.setattr("app.collectors.odaily.requests.get", fake_get)
+    monkeypatch.setattr("app.collectors.odaily.session.get", fake_get)
     flashes = OdailyCollector().fetch()
 
     assert len(flashes) == 2
