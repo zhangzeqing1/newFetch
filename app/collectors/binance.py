@@ -29,6 +29,7 @@ HEADERS = {
 
 class BinanceCollector:
     source = "binance"
+    poll_interval = config.BINANCE_POLL_INTERVAL  # Binance 有风控，单独放慢轮询
 
     def fetch(
         self,

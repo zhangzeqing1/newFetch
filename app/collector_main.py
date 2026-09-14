@@ -1,4 +1,4 @@
-"""采集服务入口：并发轮询 4 个平台，经去重后投递 Kafka。"""
+"""采集服务入口：并发轮询 4 个平台，按站点独立轮询间隔，经去重后投递 Kafka。"""
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -25,30 +25,44 @@ def main() -> None:
     dedup = Dedup()
     producer = NewsFlashProducer()
 
-    logger.info("collector started, interval=%.1fs (concurrent)", config.COLLECT_INTERVAL)
+    # 每个站独立轮询间隔：默认用 COLLECT_INTERVAL，个别站（如 Binance）自行覆盖
+    intervals = {c: getattr(c, "poll_interval", config.COLLECT_INTERVAL) for c in collectors}
+    last_fetch = {c: 0.0 for c in collectors}
+
+    logger.info(
+        "collector started, base interval=%.1fs, per-source=%s",
+        config.COLLECT_INTERVAL,
+        {c.source: intervals[c] for c in collectors},
+    )
     try:
         with ThreadPoolExecutor(max_workers=len(collectors)) as pool:
             while True:
-                # 并发采集 4 个平台（一轮耗时 ≈ 最慢的那个站，而非 4 站之和）
-                for collector, flashes, err in pool.map(_fetch_one, collectors):
-                    if err is not None:
-                        continue
+                now = time.monotonic()
+                due = [c for c in collectors if now - last_fetch[c] >= intervals[c]]
+                for c in due:
+                    last_fetch[c] = now  # 标记本次已调度
 
-                    fetch_detail = getattr(collector, "fetch_detail", None)
-                    new_count = 0
-                    for flash in flashes:
-                        if dedup.should_publish(flash):
-                            # 仅对新数据补抓正文（列表接口不含 body）
-                            if fetch_detail is not None:
-                                try:
-                                    flash.content = fetch_detail(flash)
-                                except Exception:  # noqa: BLE001
-                                    logger.warning("fetch_detail failed: %s", flash.url)
-                            producer.send(flash)
-                            new_count += 1
-                    logger.info("[%s] fetched=%d new=%d", collector.source, len(flashes), new_count)
+                if due:
+                    # 并发采集本轮到期的平台
+                    for collector, flashes, err in pool.map(_fetch_one, due):
+                        if err is not None:
+                            continue
 
-                producer.flush()
+                        fetch_detail = getattr(collector, "fetch_detail", None)
+                        new_count = 0
+                        for flash in flashes:
+                            if dedup.should_publish(flash):
+                                # 仅对新数据补抓正文（列表接口不含 body）
+                                if fetch_detail is not None:
+                                    try:
+                                        flash.content = fetch_detail(flash)
+                                    except Exception:  # noqa: BLE001
+                                        logger.warning("fetch_detail failed: %s", flash.url)
+                                producer.send(flash)
+                                new_count += 1
+                        logger.info("[%s] fetched=%d new=%d", collector.source, len(flashes), new_count)
+                    producer.flush()
+
                 time.sleep(config.COLLECT_INTERVAL)
     finally:
         producer.close()
