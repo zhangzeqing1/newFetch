@@ -62,15 +62,15 @@ def test_flush_batch_idempotent():
     ]
 
     # 批量写入
-    assert flush_batch(session, flashes) == 3
+    assert flush_batch(session, flashes) == (3, 0)
     assert session.scalar(select(func.count()).select_from(NewsFlash)) == 3
 
-    # 重复批次（新实例但 source/url 相同）：全部跳过（幂等）
+    # 重复批次（新实例但 source/url 相同）：全部跳过（幂等，0 硬失败）
     dup = [
         NewsFlash(source="s", title=f"t{i}", content="", published_at=now, url=f"https://x/{i}", collected_at=now)
         for i in range(3)
     ]
-    assert flush_batch(session, dup) == 0
+    assert flush_batch(session, dup) == (0, 0)
     assert session.scalar(select(func.count()).select_from(NewsFlash)) == 3
 
     # 混合批次：只有新的入库（走逐条降级路径）
@@ -78,7 +78,7 @@ def test_flush_batch_idempotent():
         NewsFlash(source="s", title="t0", content="", published_at=now, url="https://x/0", collected_at=now),
         NewsFlash(source="s", title="new", content="", published_at=now, url="https://x/new", collected_at=now),
     ]
-    assert flush_batch(session, mixed) == 1
+    assert flush_batch(session, mixed) == (1, 0)
     assert session.scalar(select(func.count()).select_from(NewsFlash)) == 4
 
     session.close()
