@@ -1,0 +1,84 @@
+{
+  "title": "新闻快讯采集监控",
+  "uid": "newsflash-monitoring",
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "成功率",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_fetch_total{status=\"success\"}[5m])) / clamp_min(sum(rate(collector_fetch_total[5m])), 0.0001)",
+          "legendFormat": "采集成功率",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(consumer_write_total{status=\"success\"}[5m])) / clamp_min(sum(rate(consumer_write_total[5m])), 0.0001)",
+          "legendFormat": "写库成功率",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "产出量（每分钟）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_fetched_total[5m])) * 60",
+          "legendFormat": "采集量",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(consumer_saved_total[5m])) * 60",
+          "legendFormat": "入库量",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "新鲜度（最新数据年龄，秒）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "latest_item_age_seconds",
+          "legendFormat": "{{source}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "队列积压（Kafka consumer lag）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "targets": [
+        {
+          "expr": "kafka_consumer_lag",
+          "legendFormat": "partition {{partition}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

@@ -51,3 +51,7 @@ TITLE_WINDOW = int(_env("TITLE_WINDOW", "50"))  # 参与模糊比对的最近标
 
 # ---- API ----
 API_DEFAULT_LIMIT = int(_env("API_DEFAULT_LIMIT", "20"))
+
+# ---- 监控 ----
+COLLECTOR_METRICS_PORT = int(_env("COLLECTOR_METRICS_PORT", "8001"))
+CONSUMER_METRICS_PORT = int(_env("CONSUMER_METRICS_PORT", "8002"))

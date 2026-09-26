@@ -11,11 +11,13 @@ import time
 from datetime import datetime
 
 from kafka import KafkaConsumer
+from prometheus_client import start_http_server
 from sqlalchemy.exc import IntegrityError
 
 from . import config
 from .db import SessionLocal
 from .kafka_topic import ensure_topic
+from .metrics import CONSUMER_SAVED_TOTAL, CONSUMER_WRITE_TOTAL, KAFKA_CONSUMER_LAG
 from .models import NewsFlash
 
 logger = logging.getLogger(__name__)
@@ -34,11 +36,7 @@ def parse_message(value: dict) -> NewsFlash:
 
 
 def flush_batch(session, flashes: list[NewsFlash]) -> tuple[int, int]:
-    """批量写入 MySQL，返回 (成功处理条数, 硬失败条数)。
-
-    - 成功处理：写入成功 或 幂等跳过（唯一约束冲突）
-    - 硬失败：非重复的异常（如连接丢失），需重试
-    """
+    """批量写入 MySQL，返回 (成功处理条数, 硬失败条数)。"""
     if not flashes:
         return 0, 0
     try:
@@ -81,6 +79,7 @@ def _consume_worker(worker_id: int) -> None:
     session = SessionLocal()
     batch: list[NewsFlash] = []
     last_flush = time.time()
+    last_lag = 0.0
     logger.info("worker-%d started", worker_id)
     try:
         while True:
@@ -104,6 +103,9 @@ def _consume_worker(worker_id: int) -> None:
                 or time.time() - last_flush >= config.CONSUMER_BATCH_TIMEOUT
             ):
                 saved, failed = flush_batch(session, batch)
+                CONSUMER_SAVED_TOTAL.inc(saved)
+                CONSUMER_WRITE_TOTAL.labels("success").inc(saved)
+                CONSUMER_WRITE_TOTAL.labels("fail").inc(failed)
                 if failed == 0:
                     try:
                         consumer.commit()  # 全部成功才提交 offset
@@ -114,9 +116,23 @@ def _consume_worker(worker_id: int) -> None:
                 logger.info("worker-%d batch flush: saved=%d failed=%d total=%d", worker_id, saved, failed, len(batch))
                 batch = []
                 last_flush = time.time()
+
+            # 每 ~5 秒算一次 consumer lag（队列积压）
+            if time.time() - last_lag >= 5.0:
+                try:
+                    for tp in consumer.assignment():
+                        latest = consumer.end_offsets([tp])[tp]
+                        committed = consumer.committed(tp) or 0
+                        KAFKA_CONSUMER_LAG.labels(str(tp.partition)).set(max(latest - committed, 0))
+                except Exception:  # noqa: BLE001
+                    logger.exception("worker-%d lag compute failed", worker_id)
+                last_lag = time.time()
     finally:
         if batch:
             saved, failed = flush_batch(session, batch)
+            CONSUMER_SAVED_TOTAL.inc(saved)
+            CONSUMER_WRITE_TOTAL.labels("success").inc(saved)
+            CONSUMER_WRITE_TOTAL.labels("fail").inc(failed)
             if failed == 0:
                 try:
                     consumer.commit()
@@ -128,6 +144,7 @@ def _consume_worker(worker_id: int) -> None:
 
 
 def consume() -> None:
+    start_http_server(config.CONSUMER_METRICS_PORT)
     ensure_topic()
     workers = config.KAFKA_TOPIC_PARTITIONS  # 并发度 = 分区数
     threads = []
@@ -136,12 +153,11 @@ def consume() -> None:
         t.start()
         threads.append(t)
     logger.info(
-        "consumer started, topic=%s group=%s workers=%d batch_size=%d batch_timeout=%.1fs",
+        "consumer started, topic=%s group=%s workers=%d metrics=:%d",
         config.KAFKA_TOPIC,
         config.KAFKA_CONSUMER_GROUP,
         workers,
-        config.CONSUMER_BATCH_SIZE,
-        config.CONSUMER_BATCH_TIMEOUT,
+        config.CONSUMER_METRICS_PORT,
     )
     for t in threads:
         t.join()
