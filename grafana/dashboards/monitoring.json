@@ -3,20 +3,14 @@
   "uid": "newsflash-monitoring",
   "refresh": "10s",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "panels": [
     {
       "type": "timeseries",
       "title": "成功率",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1
-        }
-      },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
       "targets": [
         {
           "expr": "sum(rate(collector_fetch_total{status=\"success\"}[5m])) / clamp_min(sum(rate(collector_fetch_total[5m])), 0.0001)",
@@ -53,9 +47,7 @@
       "title": "新鲜度（最新数据年龄，秒）",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "fieldConfig": {
-        "defaults": { "unit": "s" }
-      },
+      "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
           "expr": "latest_item_age_seconds",
@@ -69,13 +61,56 @@
       "title": "队列积压（Kafka consumer lag）",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "fieldConfig": {
-        "defaults": { "unit": "short" }
-      },
+      "fieldConfig": { "defaults": { "unit": "short" } },
       "targets": [
         {
           "expr": "kafka_consumer_lag",
           "legendFormat": "partition {{partition}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "采集耗时 P95/P99（秒）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(collector_fetch_duration_seconds_bucket[5m])) by (le, source))",
+          "legendFormat": "P95 {{source}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(collector_fetch_duration_seconds_bucket[5m])) by (le, source))",
+          "legendFormat": "P99 {{source}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "反爬拦截（按状态码/类型）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_block_total[5m])) by (source, type)",
+          "legendFormat": "{{source}} {{type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "空结果 / 字段缺失",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_empty_total[5m])) by (source, kind)",
+          "legendFormat": "{{source}} {{kind}}",
           "refId": "A"
         }
       ]

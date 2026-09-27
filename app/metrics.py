@@ -27,6 +27,16 @@ LATEST_ITEM_AGE = Gauge(
     "最新一条数据的发布时间距今秒数（越小越新）",
     ["source"],
 )
+COLLECTOR_BLOCK_TOTAL = Counter(
+    "collector_block_total",
+    "被反爬拦截次数（按来源与类型，如 403/429/timeout/error）",
+    ["source", "type"],
+)
+COLLECTOR_EMPTY_TOTAL = Counter(
+    "collector_empty_total",
+    "空结果或字段缺失次数（按来源与类型 result/field）",
+    ["source", "kind"],
+)
 
 # ---- Kafka 生产 ----
 KAFKA_PUBLISHED_TOTAL = Counter(
