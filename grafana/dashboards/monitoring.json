@@ -114,6 +114,18 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "type": "logs",
+      "title": "服务日志",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "{container=~\".+\"}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }
