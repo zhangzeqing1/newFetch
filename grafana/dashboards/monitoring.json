@@ -39,6 +39,11 @@
           "expr": "sum(rate(consumer_saved_total[5m])) * 60",
           "legendFormat": "入库量",
           "refId": "B"
+        },
+        {
+          "expr": "sum(rate(collector_new_total[5m])) * 60",
+          "legendFormat": "去重后新增量",
+          "refId": "C"
         }
       ]
     },
