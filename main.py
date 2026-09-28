@@ -6,7 +6,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import router
-from app.metrics import REQUEST_COUNT, REQUEST_DURATION
+from app.metrics import REQUEST_COUNT, REQUEST_DURATION, REQUEST_INFLIGHT
 
 app = FastAPI(title="新闻快讯采集系统")
 
@@ -19,6 +19,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         start = time.perf_counter()
         status = "500"
+        REQUEST_INFLIGHT.inc()  # 在途请求 +1
         try:
             response = await call_next(request)
             status = str(response.status_code)
@@ -27,6 +28,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             duration = time.perf_counter() - start
             REQUEST_COUNT.labels(request.method, request.url.path, status).inc()
             REQUEST_DURATION.labels(request.method, request.url.path).observe(duration)
+            REQUEST_INFLIGHT.dec()  # 在途请求 -1
 
 
 app.add_middleware(MetricsMiddleware)

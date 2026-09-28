@@ -71,3 +71,7 @@ REQUEST_DURATION = Histogram(
     "HTTP 请求耗时（按方法、路径）",
     ["method", "path"],
 )
+REQUEST_INFLIGHT = Gauge(
+    "fastapi_requests_inflight",
+    "当前正在处理的 HTTP 请求数（在途并发）",
+)

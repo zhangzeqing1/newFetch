@@ -77,20 +77,25 @@
     },
     {
       "type": "timeseries",
-      "title": "采集耗时 P95/P99（秒）",
+      "title": "采集耗时 P50/P95/P99（秒）",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
+          "expr": "histogram_quantile(0.50, sum(rate(collector_fetch_duration_seconds_bucket[5m])) by (le, source))",
+          "legendFormat": "P50 {{source}}",
+          "refId": "A"
+        },
+        {
           "expr": "histogram_quantile(0.95, sum(rate(collector_fetch_duration_seconds_bucket[5m])) by (le, source))",
           "legendFormat": "P95 {{source}}",
-          "refId": "A"
+          "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.99, sum(rate(collector_fetch_duration_seconds_bucket[5m])) by (le, source))",
           "legendFormat": "P99 {{source}}",
-          "refId": "B"
+          "refId": "C"
         }
       ]
     },
@@ -147,14 +152,37 @@
     },
     {
       "type": "timeseries",
-      "title": "API 耗时 P95（秒）",
+      "title": "API 耗时 P50/P95/P99（秒）",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
       "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
+          "expr": "histogram_quantile(0.50, sum(rate(fastapi_request_duration_seconds_bucket[5m])) by (le, path))",
+          "legendFormat": "P50 {{path}}",
+          "refId": "A"
+        },
+        {
           "expr": "histogram_quantile(0.95, sum(rate(fastapi_request_duration_seconds_bucket[5m])) by (le, path))",
-          "legendFormat": "{{path}}",
+          "legendFormat": "P95 {{path}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(fastapi_request_duration_seconds_bucket[5m])) by (le, path))",
+          "legendFormat": "P99 {{path}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API 并发数（在途请求）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 },
+      "targets": [
+        {
+          "expr": "fastapi_requests_inflight",
+          "legendFormat": "在途请求数",
           "refId": "A"
         }
       ]
