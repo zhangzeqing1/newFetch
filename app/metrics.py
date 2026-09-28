@@ -59,6 +59,10 @@ KAFKA_CONSUMER_LAG = Gauge(
     "Kafka 消费积压（生产 offset - 已消费 offset）",
     ["partition"],
 )
+CONSUMER_MESSAGE_AGE = Gauge(
+    "consumer_message_age_seconds",
+    "最新消费消息从采集到消费的延迟（排队时长）",
+)
 
 # ---- FastAPI HTTP 请求 ----
 REQUEST_COUNT = Counter(

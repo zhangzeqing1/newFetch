@@ -186,6 +186,46 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "type": "timeseries",
+      "title": "任务排队时长（秒）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 58 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        {
+          "expr": "consumer_message_age_seconds",
+          "legendFormat": "排队时长",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "死信数（写库失败，每分钟）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 58 },
+      "targets": [
+        {
+          "expr": "sum(rate(consumer_write_total{status=\"fail\"}[5m])) * 60",
+          "legendFormat": "写库失败",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "超时任务数（采集超时，每分钟）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 66 },
+      "targets": [
+        {
+          "expr": "sum(rate(collector_block_total{type=\"timeout\"}[5m])) * 60",
+          "legendFormat": "采集超时",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }

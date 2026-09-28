@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from kafka import KafkaConsumer
 from prometheus_client import start_http_server
@@ -17,7 +17,12 @@ from sqlalchemy.exc import IntegrityError
 from . import config
 from .db import SessionLocal
 from .kafka_topic import ensure_topic
-from .metrics import CONSUMER_SAVED_TOTAL, CONSUMER_WRITE_TOTAL, KAFKA_CONSUMER_LAG
+from .metrics import (
+    CONSUMER_MESSAGE_AGE,
+    CONSUMER_SAVED_TOTAL,
+    CONSUMER_WRITE_TOTAL,
+    KAFKA_CONSUMER_LAG,
+)
 from .models import NewsFlash
 
 logger = logging.getLogger(__name__)
@@ -93,7 +98,11 @@ def _consume_worker(worker_id: int) -> None:
             for msgs in records.values():
                 for msg in msgs:
                     try:
-                        batch.append(parse_message(msg.value))
+                        flash = parse_message(msg.value)
+                        batch.append(flash)
+                        # 排队时长：从采集到消费的延迟
+                        age = (datetime.now(timezone.utc).replace(tzinfo=None) - flash.collected_at).total_seconds()
+                        CONSUMER_MESSAGE_AGE.set(max(age, 0))
                     except Exception:  # noqa: BLE001
                         logger.exception("worker-%d parse failed", worker_id)
 
