@@ -59,3 +59,15 @@ KAFKA_CONSUMER_LAG = Gauge(
     "Kafka 消费积压（生产 offset - 已消费 offset）",
     ["partition"],
 )
+
+# ---- FastAPI HTTP 请求 ----
+REQUEST_COUNT = Counter(
+    "fastapi_requests_total",
+    "HTTP 请求次数（按方法、路径、状态码）",
+    ["method", "path", "status"],
+)
+REQUEST_DURATION = Histogram(
+    "fastapi_request_duration_seconds",
+    "HTTP 请求耗时（按方法、路径）",
+    ["method", "path"],
+)
