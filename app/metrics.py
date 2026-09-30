@@ -43,6 +43,10 @@ KAFKA_PUBLISHED_TOTAL = Counter(
     "kafka_published_total",
     "投递到 Kafka 的消息总数",
 )
+IP_POOL_SWITCH_TOTAL = Counter(
+    "ip_pool_switch_total",
+    "代理节点切换次数（含轮换与失败换 IP）",
+)
 
 # ---- 消费者 ----
 CONSUMER_WRITE_TOTAL = Counter(

@@ -66,3 +66,4 @@ PROXY_NODES = [
     if n.strip()
 ]
 PROXY_ROTATE_INTERVAL = float(_env("PROXY_ROTATE_INTERVAL", "60"))  # 节点轮换间隔（秒）
+PROXY_MAX_RETRIES = int(_env("PROXY_MAX_RETRIES", "2"))  # 采集失败后换 IP 重试次数
