@@ -83,6 +83,8 @@ services:
       MYSQL_HOST: mysql
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLASH_API_BASE: http://host.docker.internal:9097
+      PROXY_URL: http://host.docker.internal:7897
 
   consumer:
     build: .

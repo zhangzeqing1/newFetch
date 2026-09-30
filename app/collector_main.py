@@ -21,6 +21,7 @@ from .metrics import (
     KAFKA_PUBLISHED_TOTAL,
     LATEST_ITEM_AGE,
 )
+from .proxy_pool import ProxyPool
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,9 @@ def main() -> None:
     intervals = {c: getattr(c, "poll_interval", config.COLLECT_INTERVAL) for c in collectors}
     last_fetch = {c: 0.0 for c in collectors}
 
+    proxy_pool = ProxyPool()
+    last_rotate = 0.0
+
     logger.info(
         "collector started, base interval=%.1fs, per-source=%s, metrics=:%d",
         config.COLLECT_INTERVAL,
@@ -70,6 +74,15 @@ def main() -> None:
         with ThreadPoolExecutor(max_workers=len(collectors)) as pool:
             while True:
                 now = time.monotonic()
+
+                # 定时轮换代理节点（IP 池）
+                if proxy_pool.nodes and now - last_rotate >= config.PROXY_ROTATE_INTERVAL:
+                    try:
+                        proxy_pool.rotate()
+                    except Exception:  # noqa: BLE001
+                        logger.exception("proxy rotate failed")
+                    last_rotate = now
+
                 due = [c for c in collectors if now - last_fetch[c] >= intervals[c]]
                 for c in due:
                     last_fetch[c] = now  # 标记本次已调度

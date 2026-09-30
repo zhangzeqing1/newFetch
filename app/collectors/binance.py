@@ -29,6 +29,7 @@ HEADERS = {
 # 复用连接：常驻 Session 避免每轮轮询重复 TCP/TLS 握手
 session = requests.Session()
 session.headers.update(HEADERS)
+session.proxies = {"http": config.PROXY_URL, "https": config.PROXY_URL}  # 海外站走代理
 
 
 class BinanceCollector:
@@ -50,7 +51,6 @@ class BinanceCollector:
         )
         resp.raise_for_status()
         payload = resp.json()
-
         collected_at = utcnow_naive()
         flashes: list[NewsFlash] = []
         for catalog in payload.get("data", {}).get("catalogs", []):

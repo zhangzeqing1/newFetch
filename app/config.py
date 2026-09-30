@@ -55,3 +55,14 @@ API_DEFAULT_LIMIT = int(_env("API_DEFAULT_LIMIT", "20"))
 # ---- 监控 ----
 COLLECTOR_METRICS_PORT = int(_env("COLLECTOR_METRICS_PORT", "8001"))
 CONSUMER_METRICS_PORT = int(_env("CONSUMER_METRICS_PORT", "8002"))
+
+# ---- 代理 / IP 池（基于 Clash 切换节点）----
+CLASH_API_BASE = _env("CLASH_API_BASE", "http://127.0.0.1:9097")
+CLASH_API_SECRET = _env("CLASH_API_SECRET", "set-your-secret")
+PROXY_URL = _env("PROXY_URL", "http://127.0.0.1:7897")
+PROXY_NODES = [
+    n.strip()
+    for n in _env("PROXY_NODES", "🇭🇰HK 01,🇭🇰HK 02,🇯🇵JP 01,🇯🇵JP 02").split(",")
+    if n.strip()
+]
+PROXY_ROTATE_INTERVAL = float(_env("PROXY_ROTATE_INTERVAL", "60"))  # 节点轮换间隔（秒）
