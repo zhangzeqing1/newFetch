@@ -35,6 +35,7 @@ session.proxies = {"http": config.PROXY_URL, "https": config.PROXY_URL}  # 海�
 class BinanceCollector:
     source = "binance"
     poll_interval = config.BINANCE_POLL_INTERVAL  # Binance 有风控，单独放慢轮询
+    use_proxy = True  # 海外站走代理
 
     def fetch(
         self,

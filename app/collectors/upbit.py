@@ -31,6 +31,7 @@ session.proxies = {"http": config.PROXY_URL, "https": config.PROXY_URL}  # 海�
 class UpbitCollector:
     source = "upbit"
     poll_interval = config.UPBIT_POLL_INTERVAL  # Upbit 有风控，单独放慢轮询
+    use_proxy = True  # 海外站走代理
 
     def fetch(self, page: int = 1, per_page: int | None = None) -> list[NewsFlash]:
         per_page = per_page or config.UPBIT_PAGE_SIZE

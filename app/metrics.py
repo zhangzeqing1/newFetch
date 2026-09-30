@@ -52,6 +52,15 @@ IP_POOL_HEALTH_CHECK_TOTAL = Counter(
     "代理节点健康检查次数（按结果）",
     ["result"],
 )
+IP_POOL_REQUEST_TOTAL = Counter(
+    "ip_pool_request_total",
+    "每个代理节点的请求次数",
+    ["node"],
+)
+IP_POOL_AVAILABLE = Gauge(
+    "ip_pool_available",
+    "IP 池当前可用节点数",
+)
 
 # ---- 消费者 ----
 CONSUMER_WRITE_TOTAL = Counter(

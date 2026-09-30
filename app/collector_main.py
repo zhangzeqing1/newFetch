@@ -33,6 +33,8 @@ def _fetch_one(collector, proxy_pool: ProxyPool, lock: threading.Lock):
     """采集单个平台，失败则换 IP 重试。返回 (collector, flashes, error)。"""
     last_err = None
     for attempt in range(config.PROXY_MAX_RETRIES + 1):
+        if getattr(collector, "use_proxy", False):
+            proxy_pool.record_request()  # 记录本次请求走的节点
         start = time.perf_counter()
         try:
             flashes = collector.fetch()

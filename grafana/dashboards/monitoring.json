@@ -226,6 +226,32 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "type": "stat",
+      "title": "IP 池可用数",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 74 },
+      "targets": [
+        {
+          "expr": "ip_pool_available",
+          "legendFormat": "可用节点数",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "单 IP 请求量（每分钟）",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 74 },
+      "targets": [
+        {
+          "expr": "sum(rate(ip_pool_request_total[5m])) by (node) * 60",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }
