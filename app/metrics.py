@@ -47,6 +47,11 @@ IP_POOL_SWITCH_TOTAL = Counter(
     "ip_pool_switch_total",
     "代理节点切换次数（含轮换与失败换 IP）",
 )
+IP_POOL_HEALTH_CHECK_TOTAL = Counter(
+    "ip_pool_health_check_total",
+    "代理节点健康检查次数（按结果）",
+    ["result"],
+)
 
 # ---- 消费者 ----
 CONSUMER_WRITE_TOTAL = Counter(
